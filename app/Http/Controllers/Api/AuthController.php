@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-
+use Illuminate\Support\Facades\Storage;
 class AuthController extends Controller
 {
     // -------------------------------
@@ -87,46 +87,45 @@ class AuthController extends Controller
             'message' => 'Logged out successfully'
         ]);
     }
-    public function updateProfile(Request $request)
-{
-    try {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email,' . $request->user()->id,
-            'age' => 'required|integer|min:1',
-            'weight' => 'required|numeric|min:1',
-            'height' => 'required|numeric|min:1',
-            'gender' => 'required|in:male,female',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-        ]);
+   public function updateProfile(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|email|max:255|unique:users,email,' . $request->user()->id,
+                'age' => 'required|integer|min:1',
+                'weight' => 'required|numeric|min:1',
+                'height' => 'required|numeric|min:1',
+                'gender' => 'required|in:male,female',
+                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            ]);
 
-        $user = $request->user();
+            $user = $request->user();
+            unset($validated['image']);
+            $user->update($validated);
 
-        // نحيد image من validated
-        unset($validated['image']);
+            if ($request->hasFile('image')) {
+                // حذف الصورة القديمة
+                if ($user->image && Storage::disk('public')->exists($user->image)) {
+                    Storage::disk('public')->delete($user->image);
+                }
+                
+                $path = $request->file('image')->store('profiles', 'public');
+                $user->image = $path;
+                $user->save();
+            }
 
-        // Update data بدون image
-        $user->update($validated);
+            return response()->json([
+                'message' => 'Profile updated successfully',
+                'user' => $user
+            ]);
 
-        // إذا كانت صورة
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('profiles', 'public');
-            $user->image = $path;
-            $user->save();
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 500);
         }
-        
-
-        return response()->json([
-            'message' => 'Profile updated successfully',
-            'user' => $user
-        ]);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
 
 
 
