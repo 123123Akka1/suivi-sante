@@ -13,7 +13,7 @@ class AuthController extends Controller
     // -------------------------------
     // Register
     // -------------------------------
-   public function register(Request $request)
+  public function register(Request $request)
 {
     $request->validate([
         'name' => 'required|string|max:255',
@@ -23,7 +23,7 @@ class AuthController extends Controller
         'weight' => 'required|numeric',
         'height' => 'required|numeric',
         'gender' => 'required|string',
-        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // ← جديد
+        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
     ]);
 
     $data = $request->only(['name','email','password','age','weight','height','gender']);
@@ -31,8 +31,9 @@ class AuthController extends Controller
 
     // Upload image if exists
     if ($request->hasFile('image')) {
-        $path = $request->file('image')->store('avatars', 'public');
-        $data['image'] = url("storage/$path");
+        // ✅ حفظ path فقط (بلا URL)
+        $path = $request->file('image')->store('profiles', 'public');
+        $data['image'] = $path; // profiles/xxxxx.jpg
     }
 
     $user = User::create($data);
