@@ -7,7 +7,9 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Storage;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
+use Illuminate\Support\Facades\Log;
+
 class AuthController extends Controller
 {
     // -------------------------------
@@ -29,15 +31,16 @@ class AuthController extends Controller
     $data = $request->only(['name','email','password','age','weight','height','gender']);
     $data['password'] = Hash::make($data['password']);
 
-    // Upload image if exists
+    // ✅ Upload to Cloudinary
     if ($request->hasFile('image')) {
-        // ✅ حفظ path فقط (بلا URL)
-        $path = $request->file('image')->store('profiles', 'public');
-        $data['image'] = $path; // profiles/xxxxx.jpg
+        $uploadedFile = Cloudinary::upload(
+            $request->file('image')->getRealPath(),
+            ['folder' => 'profiles']
+        );
+        $data['image'] = $uploadedFile->getSecurePath(); // URL كامل!
     }
 
     $user = User::create($data);
-
     $token = $user->createToken('auth_token')->plainTextToken;
 
     return response()->json([
@@ -88,45 +91,50 @@ class AuthController extends Controller
         ]);
     }
    public function updateProfile(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'email' => 'required|email|max:255|unique:users,email,' . $request->user()->id,
-                'age' => 'required|integer|min:1',
-                'weight' => 'required|numeric|min:1',
-                'height' => 'required|numeric|min:1',
-                'gender' => 'required|in:male,female',
-                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            ]);
+{
+    try {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $request->user()->id,
+            'age' => 'required|integer|min:1',
+            'weight' => 'required|numeric|min:1',
+            'height' => 'required|numeric|min:1',
+            'gender' => 'required|in:male,female',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+        ]);
 
-            $user = $request->user();
-            unset($validated['image']);
-            $user->update($validated);
+        $user = $request->user();
+        unset($validated['image']);
+        $user->update($validated);
 
-            if ($request->hasFile('image')) {
-                // حذف الصورة القديمة
-                if ($user->image && Storage::disk('public')->exists($user->image)) {
-                    Storage::disk('public')->delete($user->image);
-                }
-                
-                $path = $request->file('image')->store('profiles', 'public');
-                $user->image = $path;
-                $user->save();
-            }
-
-            return response()->json([
-                'message' => 'Profile updated successfully',
-                'user' => $user
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => $e->getMessage()
-            ], 500);
+        // Upload to Cloudinary
+        if ($request->hasFile('image')) {
+            Log::info('Uploading image to Cloudinary...');
+            
+            $uploadedFile = Cloudinary::upload(
+                $request->file('image')->getRealPath(),
+                ['folder' => 'profiles']
+            );
+            
+            $imageUrl = $uploadedFile->getSecurePath();
+            Log::info('Image uploaded: ' . $imageUrl);
+            
+            $user->image = $imageUrl;
+            $user->save();
         }
-    }
 
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'user' => $user
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Update profile error: ' . $e->getMessage());
+        return response()->json([
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
 
 
     // -------------------------------
