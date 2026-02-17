@@ -118,8 +118,10 @@ class AuthController extends Controller
         if (!empty($validated['image_base64'])) {
             Log::info('Uploading base64 image to Cloudinary...');
             
-            $uploadedFile = Cloudinary::upload($validated['image_base64'], [
-                'folder' => 'profiles'
+            
+            $uploadedFile = Cloudinary::uploadFile($validated['image_base64'], [
+                'folder' => 'profiles',
+                'resource_type' => 'image',
             ]);
             
             $imageUrl = $uploadedFile->getSecurePath();
