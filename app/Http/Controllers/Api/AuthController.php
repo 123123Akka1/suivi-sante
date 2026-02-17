@@ -160,18 +160,6 @@ class AuthController extends Controller
     }
 }
 
-        return response()->json([
-            'message' => 'Profile updated successfully',
-            'user'    => $user->fresh()
-        ]);
-
-    } catch (\Exception $e) {
-        Log::error('Update profile error: ' . $e->getMessage());
-        return response()->json(['error' => $e->getMessage()], 500);
-    }
-}
-
-
     // -------------------------------
     // Profile
     // -------------------------------
