@@ -116,20 +116,31 @@ class AuthController extends Controller
 
         // Upload base64 image to Cloudinary
         if (!empty($validated['image_base64'])) {
-            Log::info('Uploading base64 image to Cloudinary...');
-            
-            
-            $uploadedFile = Cloudinary::uploadFile($validated['image_base64'], [
-                'folder' => 'profiles',
-                'resource_type' => 'image',
-            ]);
-            
-            $imageUrl = $uploadedFile->getSecurePath();
-            Log::info('Image uploaded: ' . $imageUrl);
-            
-            $user->image = $imageUrl;
-            $user->save();
-        }
+    // احفظ base64 كـ temp file
+    $imageData = $validated['image_base64'];
+    
+    // شيل الـ prefix (data:image/jpeg;base64,)
+    $imageData = preg_replace('/^data:image\/\w+;base64,/', '', $imageData);
+    $imageData = base64_decode($imageData);
+    
+    // خزن مؤقتاً
+    $tmpFile = tempnam(sys_get_temp_dir(), 'img_') . '.jpg';
+    file_put_contents($tmpFile, $imageData);
+    
+    // upload لـ Cloudinary
+    $uploadedFile = Cloudinary::upload($tmpFile, [
+        'folder' => 'profiles'
+    ]);
+    
+    $imageUrl = $uploadedFile->getSecurePath();
+    Log::info('Image uploaded: ' . $imageUrl);
+    
+    $user->image = $imageUrl;
+    $user->save();
+    
+    // امسح الـ temp file
+    unlink($tmpFile);
+}
 
         return response()->json([
             'message' => 'Profile updated successfully',
