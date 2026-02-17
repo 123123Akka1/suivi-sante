@@ -92,33 +92,35 @@ class AuthController extends Controller
     }
    public function updateProfile(Request $request)
 {
-     Log::info('Content-Type: ' . $request->header('Content-Type'));
-    Log::info('Has file image: ' . ($request->hasFile('image') ? 'YES' : 'NO'));
-    Log::info('All files: ', $request->allFiles());
-    Log::info('All input: ', array_keys($request->all()));
     try {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email,' . $request->user()->id,
-            'age' => 'required|integer|min:1',
-            'weight' => 'required|numeric|min:1',
-            'height' => 'required|numeric|min:1',
-            'gender' => 'required|in:male,female',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'name'         => 'required|string|max:255',
+            'email'        => 'required|email|max:255|unique:users,email,' . $request->user()->id,
+            'age'          => 'required|integer|min:1',
+            'weight'       => 'required|numeric|min:1',
+            'height'       => 'required|numeric|min:1',
+            'gender'       => 'required|in:male,female',
+            'image_base64' => 'nullable|string',
         ]);
 
         $user = $request->user();
-        unset($validated['image']);
-        $user->update($validated);
+        
+        $user->update([
+            'name'   => $validated['name'],
+            'email'  => $validated['email'],
+            'age'    => $validated['age'],
+            'weight' => $validated['weight'],
+            'height' => $validated['height'],
+            'gender' => $validated['gender'],
+        ]);
 
-        // Upload to Cloudinary
-        if ($request->hasFile('image')) {
-            Log::info('Uploading image to Cloudinary...');
+        // Upload base64 image to Cloudinary
+        if (!empty($validated['image_base64'])) {
+            Log::info('Uploading base64 image to Cloudinary...');
             
-            $uploadedFile = Cloudinary::upload(
-                $request->file('image')->getRealPath(),
-                ['folder' => 'profiles']
-            );
+            $uploadedFile = Cloudinary::upload($validated['image_base64'], [
+                'folder' => 'profiles'
+            ]);
             
             $imageUrl = $uploadedFile->getSecurePath();
             Log::info('Image uploaded: ' . $imageUrl);
@@ -129,14 +131,12 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Profile updated successfully',
-            'user' => $user
+            'user'    => $user->fresh()
         ]);
 
     } catch (\Exception $e) {
         Log::error('Update profile error: ' . $e->getMessage());
-        return response()->json([
-            'error' => $e->getMessage()
-        ], 500);
+        return response()->json(['error' => $e->getMessage()], 500);
     }
 }
 
