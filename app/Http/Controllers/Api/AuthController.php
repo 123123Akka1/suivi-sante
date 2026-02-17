@@ -132,7 +132,12 @@ class AuthController extends Controller
             Log::info('Upload result: ', (array) $uploadedFile);
             
             $imageUrl = $uploadedFile->getSecurePath();
-            Log::info('Secure path: ' . $imageUrl);
+
+                if (!str_starts_with($imageUrl, 'http')) {
+                    $imageUrl = 'https://res.cloudinary.com/di72bzptu/image/upload/' . $imageUrl;
+                }
+
+Log::info('Secure path: ' . $imageUrl);
 
             // إلا ماكانش URL كامل، كملو
             if (!str_starts_with($imageUrl, 'http')) {
