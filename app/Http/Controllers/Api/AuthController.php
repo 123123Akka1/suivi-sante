@@ -104,7 +104,7 @@ class AuthController extends Controller
         ]);
 
         $user = $request->user();
-        
+
         $user->update([
             'name'   => $validated['name'],
             'email'  => $validated['email'],
@@ -114,32 +114,50 @@ class AuthController extends Controller
             'gender' => $validated['gender'],
         ]);
 
-        // Upload base64 image to Cloudinary
         if (!empty($validated['image_base64'])) {
-    // احفظ base64 كـ temp file
-    $imageData = $validated['image_base64'];
-    
-    // شيل الـ prefix (data:image/jpeg;base64,)
-    $imageData = preg_replace('/^data:image\/\w+;base64,/', '', $imageData);
-    $imageData = base64_decode($imageData);
-    
-    // خزن مؤقتاً
-    $tmpFile = tempnam(sys_get_temp_dir(), 'img_') . '.jpg';
-    file_put_contents($tmpFile, $imageData);
-    
-    // upload لـ Cloudinary
-    $uploadedFile = Cloudinary::upload($tmpFile, [
-        'folder' => 'profiles'
-    ]);
-    
-    $imageUrl = $uploadedFile->getSecurePath();
-    Log::info('Image uploaded: ' . $imageUrl);
-    
-    $user->image = $imageUrl;
-    $user->save();
-    
-    // امسح الـ temp file
-    unlink($tmpFile);
+            // حول base64 لـ temp file
+            $imageData = $validated['image_base64'];
+            $imageData = preg_replace('/^data:image\/\w+;base64,/', '', $imageData);
+            $imageData = base64_decode($imageData);
+
+            $tmpFile = tempnam(sys_get_temp_dir(), 'img_') . '.jpg';
+            file_put_contents($tmpFile, $imageData);
+
+            // Upload لـ Cloudinary
+            $uploadedFile = Cloudinary::upload($tmpFile, [
+                'folder' => 'profiles'
+            ]);
+
+            // DEBUG - شوف شنو كيرجع Cloudinary
+            Log::info('Upload result: ', (array) $uploadedFile);
+            
+            $imageUrl = $uploadedFile->getSecurePath();
+            Log::info('Secure path: ' . $imageUrl);
+
+            // إلا ماكانش URL كامل، كملو
+            if (!str_starts_with($imageUrl, 'http')) {
+                $imageUrl = 'https://res.cloudinary.com/' 
+                    . env('CLOUDINARY_CLOUD_NAME') 
+                    . '/image/upload/' 
+                    . $imageUrl;
+            }
+
+            $user->image = $imageUrl;
+            $user->save();
+
+            // امسح الـ temp file
+            unlink($tmpFile);
+        }
+
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'user'    => $user->fresh()
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Update profile error: ' . $e->getMessage());
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
 }
 
         return response()->json([
