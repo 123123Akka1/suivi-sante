@@ -92,6 +92,10 @@ class AuthController extends Controller
     }
    public function updateProfile(Request $request)
 {
+     Log::info('Content-Type: ' . $request->header('Content-Type'));
+    Log::info('Has file image: ' . ($request->hasFile('image') ? 'YES' : 'NO'));
+    Log::info('All files: ', $request->allFiles());
+    Log::info('All input: ', array_keys($request->all()));
     try {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
